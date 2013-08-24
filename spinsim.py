@@ -30,6 +30,8 @@ total_steps = 0				# Total number of steps to make
 
 # Initialize Graphics
 window = sf.RenderWindow( sf.VideoMode(window_width,window_height), "SpinSim" )
+# Window doesn't draw right without a short delay
+time.sleep(0.1)
 # Set background
 window.clear(sf.Color.BLACK)
 window.display()
@@ -42,6 +44,13 @@ circle.position = (0,0)
 circle.fill_color = sf.Color.BLACK
 window.draw(circle)
 window.display()
+
+# Convert screen coordinates to simulated machine coordinates
+def screen2cart(screen_x,screen_y):
+	x = screen_x/window_scale - radius
+	y = radius - screen_y/window_scale 
+	print(screen_x,screen_y,x,y)
+	return x,y
 
 # Convert polar coordinates
 # into cartesian coordinates.
@@ -141,11 +150,27 @@ def th2_step():
 	#print(":: Th2 Steps:",th2_steps,"Current:",curr_th2)
 	#print(curr_bipol)
 
+# Wait for mouse click somewhere in the window
+# and return screen coordinates
+def get_click():
+	while True:
+		time.sleep(0.05)	# Don't hog the CPU
+		for event in window.events:
+			if type(event) is sf.MouseButtonEvent:
+				if event.pressed:
+					return event.position
+			if type(event) is sf.CloseEvent:
+				window.close()
+				exit()
+
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
 
-# Draw starting and ending points
+# Get Starting and ending coordinates from mouse
+# And draw them on the screen
+start_cart = start_x,start_y = screen2cart( *get_click() )
 draw_cartesian_point( *start_cart , color=sf.Color.GREEN )
+end_cart = end_x,end_y = screen2cart( *get_click() )
 draw_cartesian_point( *end_cart , color=sf.Color.RED )
 
 # Convert starting and ending points to bipolar coordinates
