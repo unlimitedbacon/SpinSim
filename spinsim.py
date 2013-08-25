@@ -168,89 +168,105 @@ def get_click():
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
 
-# Get Starting and ending coordinates from mouse
+# Get Starting coordinates from mouse
 # And draw them on the screen
 start_cart = start_x,start_y = screen2cart( *get_click() )
 draw_cartesian_point( *start_cart , color=sf.Color.GREEN )
-end_cart = end_x,end_y = screen2cart( *get_click() )
-draw_cartesian_point( *end_cart , color=sf.Color.RED )
-
-# Convert starting and ending points to bipolar coordinates
+# Convert starting points to bipolar coordinates
 start_bipol = start_th1,start_th2 = cart2bipol( *start_cart )
-end_bipol = end_th1,end_th2 = cart2bipol( *end_cart )
-# Set current position to starting position
-curr_bipol = curr_th1,curr_th2 = start_bipol
-print(":: Start:",start_bipol)
-print("   End:",end_bipol)
 
-# To allow crossing over theta = 10 degrees
-# compare endpoint with opposite from startpoint
-if start_th1 >= 0:
-	if start_th1-math.pi > end_th1:
-		# if the target is on the other side, add 360 degrees
-		end_th1 = end_th1 + 2*math.pi
-else:
-	if start_th1+math.pi < end_th1:
-		end_th1 = end_th1 - 2*math.pi
-# This method for determining the shortest route is based on polar coordinates
-# with bipolar coordinates, it doesn't always work.
-# Maybe its better to convert to polar and back again
+# MAIN LOOP
+while True:
+	# Get Target coordinates from mouse
+	# and draw it on the screen
+	end_cart = end_x,end_y = screen2cart( *get_click() )
+	draw_cartesian_point( *end_cart , color=sf.Color.RED )
 
-# Determine integer number of steps to move on each axis
-th1_delta = round( abs(end_th1-start_th1) / th1_inc )
-th2_delta = round( abs(end_th2-start_th2) / th2_inc )
-total_steps = th1_delta+th2_delta
-print(":: Steps")
-print("   Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
+	# Convert ending points to bipolar coordinates
+	end_bipol = end_th1,end_th2 = cart2bipol( *end_cart )
+	# Set current position to starting position
+	curr_bipol = curr_th1,curr_th2 = start_bipol
+	print(":: Start:",start_bipol)
+	print("   End:",end_bipol)
 
-# Determine time of move
-# Distance in radians, which makes no sense at all
-distance = math.sqrt( (end_th1-start_th1)**2 + (end_th2-start_th2)**2 )
-move_time = distance/speed
-print(":: Distance:",distance,"Time:",move_time)
+	# To allow crossing over theta = 10 degrees
+	# compare endpoint with opposite from startpoint
+	if start_th1 >= 0:
+		if start_th1-math.pi > end_th1:
+			# if the target is on the other side, add 360 degrees
+			end_th1 = end_th1 + 2*math.pi
+	else:
+		if start_th1+math.pi < end_th1:
+			end_th1 = end_th1 - 2*math.pi
+	# This method for determining the shortest route is based on polar coordinates
+	# with bipolar coordinates, it doesn't always work.
+	# Maybe its better to convert to polar and back again
 
-# Calculate interval between steps for each axis
-# Its possible that a move will only be along one axis (or none at all)
-# If this is the case, the delta will be zero.
-if th1_delta > 0:
-	th1_dt = move_time/th1_delta
-else:
-	# Set the stepping interval greater than the move time
-	# so that axis will never be stepped
-	th1_dt = move_time+1
-if th2_delta > 0:
-	th2_dt = move_time/th2_delta
-else:
-	th2_dt = move_time+1
+	# Determine integer number of steps to move on each axis
+	th1_delta = round( abs(end_th1-start_th1) / th1_inc )
+	th2_delta = round( abs(end_th2-start_th2) / th2_inc )
+	total_steps = th1_delta+th2_delta
+	print(":: Steps")
+	print("   Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
 
-# Determine direction to move on each axis
-if end_th1 >= start_th1:
-	th1_dir = True
-else:
-	th1_dir = False
-if end_th2 >= start_th2:
-	th2_dir = True
-else:
-	th2_dir = False
+	# Determine time of move
+	# Distance in radians, which makes no sense at all
+	distance = math.sqrt( (end_th1-start_th1)**2 + (end_th2-start_th2)**2 )
+	move_time = distance/speed
+	print(":: Distance:",distance,"Time:",move_time)
 
-# Determine times of initial steps
-next_th1 = time.time() + th1_dt
-next_th2 = time.time() + th2_dt
+	# Calculate interval between steps for each axis
+	# Its possible that a move will only be along one axis (or none at all)
+	# If this is the case, the delta will be zero.
+	if th1_delta > 0:
+		th1_dt = move_time/th1_delta
+	else:
+		# Set the stepping interval greater than the move time
+		# so that axis will never be stepped
+		th1_dt = move_time+1
+	if th2_delta > 0:
+		th2_dt = move_time/th2_delta
+	else:
+		th2_dt = move_time+1
 
-# GO!
-while sum(curr_steps) < total_steps:
-	if time.time() >= next_th1:
-		th1_step()
-		next_th1 = time.time() + th1_dt
-	if time.time() >= next_th2:
-		th2_step()
-		next_th2 = time.time() + th2_dt
-#while sum(curr_steps) < total_steps:
-#	th1_step()
-#	th2_step()
-#	print(":: Steps:",curr_steps,"Position:",curr_bipol)
-#	time.sleep(0.01)
+	# Determine direction to move on each axis
+	if end_th1 >= start_th1:
+		th1_dir = True
+	else:
+		th1_dir = False
+	if end_th2 >= start_th2:
+		th2_dir = True
+	else:
+		th2_dir = False
+
+	# Determine times of initial steps
+	next_th1 = time.time() + th1_dt
+	next_th2 = time.time() + th2_dt
+
+	# Reset step counters
+	curr_steps = th1_steps,th2_steps = 0,0
+
+	# GO!
+	while sum(curr_steps) < total_steps:
+		if time.time() >= next_th1:
+			th1_step()
+			next_th1 = time.time() + th1_dt
+		if time.time() >= next_th2:
+			th2_step()
+			next_th2 = time.time() + th2_dt
+		# Check for signal to quit
+		for event in window.events:
+			if type(event) is sf.CloseEvent:
+				window.close()
+				exit()
+	#while sum(curr_steps) < total_steps:
+	#	th1_step()
+	#	th2_step()
+	#	print(":: Steps:",curr_steps,"Position:",curr_bipol)
+	#	time.sleep(0.01)
 	
+	# Set new starting point in preperation for next move
+	start_bipol = start_th1,start_th2 = curr_bipol
 
 # Done. Wait for signal to quit.
 while True:
