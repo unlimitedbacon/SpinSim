@@ -183,6 +183,19 @@ curr_bipol = curr_th1,curr_th2 = start_bipol
 print(":: Start:",start_bipol)
 print("   End:",end_bipol)
 
+# To allow crossing over theta = 10 degrees
+# compare endpoint with opposite from startpoint
+if start_th1 >= 0:
+	if start_th1-math.pi > end_th1:
+		# if the target is on the other side, add 360 degrees
+		end_th1 = end_th1 + 2*math.pi
+else:
+	if start_th1+math.pi < end_th1:
+		end_th1 = end_th1 - 2*math.pi
+# This method for determining the shortest route is based on polar coordinates
+# with bipolar coordinates, it doesn't always work.
+# Maybe its better to convert to polar and back again
+
 # Determine integer number of steps to move on each axis
 th1_delta = round( abs(end_th1-start_th1) / th1_inc )
 th2_delta = round( abs(end_th2-start_th2) / th2_inc )
