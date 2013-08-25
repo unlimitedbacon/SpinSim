@@ -7,7 +7,7 @@ import time
 
 # Simulation settings
 radius = 160	# Radius of platter
-speed = 0.1	# Speed in radians/second
+speed = 0.2	# Speed in radians/second
 th1_inc = 0.005	# Platter step increment in radians
 th2_inc = 0.005	# Arm step increment in radians
 
@@ -51,7 +51,7 @@ window.display()
 def screen2cart(screen_x,screen_y):
 	x = screen_x/window_scale - radius
 	y = radius - screen_y/window_scale 
-	print(screen_x,screen_y,x,y)
+	#print(screen_x,screen_y,x,y)
 	return x,y
 
 # Convert polar coordinates
@@ -180,22 +180,35 @@ start_bipol = start_th1,start_th2 = cart2bipol( *start_cart )
 end_bipol = end_th1,end_th2 = cart2bipol( *end_cart )
 # Set current position to starting position
 curr_bipol = curr_th1,curr_th2 = start_bipol
-print(":: Start:",start_bipol,"End:",end_bipol,"Current:",curr_bipol)
+print(":: Start:",start_bipol)
+print("   End:",end_bipol)
 
 # Determine integer number of steps to move on each axis
 th1_delta = round( abs(end_th1-start_th1) / th1_inc )
 th2_delta = round( abs(end_th2-start_th2) / th2_inc )
 total_steps = th1_delta+th2_delta
-print(":: Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
+print(":: Steps")
+print("   Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
 
 # Determine time of move
 # Distance in radians, which makes no sense at all
 distance = math.sqrt( (end_th1-start_th1)**2 + (end_th2-start_th2)**2 )
 move_time = distance/speed
 print(":: Distance:",distance,"Time:",move_time)
-# Interval between steps for each axis
-th1_dt = move_time/th1_delta
-th2_dt = move_time/th2_delta
+
+# Calculate interval between steps for each axis
+# Its possible that a move will only be along one axis (or none at all)
+# If this is the case, the delta will be zero.
+if th1_delta > 0:
+	th1_dt = move_time/th1_delta
+else:
+	# Set the stepping interval greater than the move time
+	# so that axis will never be stepped
+	th1_dt = move_time+1
+if th2_delta > 0:
+	th2_dt = move_time/th2_delta
+else:
+	th2_dt = move_time+1
 
 # Determine direction to move on each axis
 if end_th1 >= start_th1:
