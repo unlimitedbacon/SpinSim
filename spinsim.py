@@ -2,15 +2,17 @@
 
 import sfml as sf	# Graphics library
 import math
+import fractions
 import time
 
 # Simulation settings
 radius = 160	# Radius of platter
+speed = 0.1	# Speed in radians/second
 th1_inc = 0.005	# Platter step increment in radians
 th2_inc = 0.005	# Arm step increment in radians
 
-start_cart = start_x,start_y = 100,80	# Starting coordinates (cartesian)
-end_cart = end_x,end_y = 50,0		# Ending coordinates
+start_cart = start_x,start_y = 0,0	# Starting coordinates (cartesian)
+end_cart = end_x,end_y = 0,0		# Ending coordinates
 
 # Graphics settings
 window_scale = 2
@@ -180,11 +182,20 @@ end_bipol = end_th1,end_th2 = cart2bipol( *end_cart )
 curr_bipol = curr_th1,curr_th2 = start_bipol
 print(":: Start:",start_bipol,"End:",end_bipol,"Current:",curr_bipol)
 
-# Determine number of steps to move on each axis
-th1_delta = abs(end_th1-start_th1) / th1_inc
-th2_delta = abs(end_th2-start_th2) / th2_inc
+# Determine integer number of steps to move on each axis
+th1_delta = round( abs(end_th1-start_th1) / th1_inc )
+th2_delta = round( abs(end_th2-start_th2) / th2_inc )
 total_steps = th1_delta+th2_delta
 print(":: Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
+
+# Determine time of move
+# Distance in radians, which makes no sense at all
+distance = math.sqrt( (end_th1-start_th1)**2 + (end_th2-start_th2)**2 )
+move_time = distance/speed
+print(":: Distance:",distance,"Time:",move_time)
+# Interval between steps for each axis
+th1_dt = move_time/th1_delta
+th2_dt = move_time/th2_delta
 
 # Determine direction to move on each axis
 if end_th1 >= start_th1:
@@ -196,11 +207,23 @@ if end_th2 >= start_th2:
 else:
 	th2_dir = False
 
+# Determine times of initial steps
+next_th1 = time.time() + th1_dt
+next_th2 = time.time() + th2_dt
+
+# GO!
 while sum(curr_steps) < total_steps:
-	th1_step()
-	th2_step()
-	print(":: Steps:",curr_steps,"Position:",curr_bipol)
-	time.sleep(0.01)
+	if time.time() >= next_th1:
+		th1_step()
+		next_th1 = time.time() + th1_dt
+	if time.time() >= next_th2:
+		th2_step()
+		next_th2 = time.time() + th2_dt
+#while sum(curr_steps) < total_steps:
+#	th1_step()
+#	th2_step()
+#	print(":: Steps:",curr_steps,"Position:",curr_bipol)
+#	time.sleep(0.01)
 	
 
 # Done. Wait for signal to quit.
