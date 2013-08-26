@@ -7,9 +7,9 @@ import time
 
 # Simulation settings
 radius = 160	# Radius of platter
-speed = 0.2	# Speed in radians/second
-th1_inc = 0.005	# Platter step increment in radians
-th2_inc = 0.005	# Arm step increment in radians
+speed = 10	# Speed in mm/s
+th1_inc = 0.01	# Platter step increment in radians
+th2_inc = 0.01	# Arm step increment in radians
 
 start_cart = start_x,start_y = 0,0	# Starting coordinates (cartesian)
 end_cart = end_x,end_y = 0,0		# Ending coordinates
@@ -26,8 +26,8 @@ curr_bipol = curr_th1,curr_th2 = start_bipol
 curr_steps = th1_steps,th2_steps = 0,0
 th1_dir = True				# Movement direction
 th2_dir = True				# True = positive, False = negative
-th1_delta = 0				# Number of steps on axis
-th2_delta = 0
+th1_total_steps = 0				# Number of steps on axis
+th2_total_steps = 0
 total_steps = 0				# Total number of steps to make
 
 # Initialize Graphics
@@ -165,6 +165,25 @@ def get_click():
 				window.close()
 				exit()
 
+# MAGIC:
+def dth1_dt():
+	# Oh God. I hope this math is right.
+	r = radius
+	x0 = start_x
+	y0 = start_y
+	x = Vx*t+x0
+	y = Vy*t+y0
+	# dth2_dt() could be used at the beginning here
+	return -(1/(1-((x**2+y**2)/(4*r**2)))) * (((Vx**2+Vy**2)*t+Vx*x0+Vy*y0)/(2*r*math.sqrt(x**2+y**2))) - (1/(1+(y/x)**2)) * ((Vy*x0-Vx*y0)/x**2)
+
+def dth2_dt():
+	r = radius
+	x0 = start_x
+	y0 = start_y
+	x = Vx*t+x0
+	y = Vy*t+y0
+	return 2*(1/(1-((x**2+y**2)/(4*r**2))))
+
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
 
@@ -177,6 +196,9 @@ start_bipol = start_th1,start_th2 = cart2bipol( *start_cart )
 
 # MAIN LOOP
 while True:
+	# Reset step counters
+	curr_steps = th1_steps,th2_steps = 0,0
+
 	# Get Target coordinates from mouse
 	# and draw it on the screen
 	end_cart = end_x,end_y = screen2cart( *get_click() )
@@ -186,85 +208,87 @@ while True:
 	end_bipol = end_th1,end_th2 = cart2bipol( *end_cart )
 	# Set current position to starting position
 	curr_bipol = curr_th1,curr_th2 = start_bipol
-	print(":: Start:",start_bipol)
+	print(":: Cartesian")
+	print("   Start:",start_cart)
+	print("   End:",end_cart)
+	print(":: Bipoler")
+	print("   Start:",start_bipol)
 	print("   End:",end_bipol)
 
-	# To allow crossing over theta = 10 degrees
-	# compare endpoint with opposite from startpoint
-	if start_th1 >= 0:
-		if start_th1-math.pi > end_th1:
-			# if the target is on the other side, add 360 degrees
-			end_th1 = end_th1 + 2*math.pi
-	else:
-		if start_th1+math.pi < end_th1:
-			end_th1 = end_th1 - 2*math.pi
-	# This method for determining the shortest route is based on polar coordinates
-	# with bipolar coordinates, it doesn't always work.
-	# Maybe its better to convert to polar and back again
-
 	# Determine integer number of steps to move on each axis
-	th1_delta = round( abs(end_th1-start_th1) / th1_inc )
-	th2_delta = round( abs(end_th2-start_th2) / th2_inc )
-	total_steps = th1_delta+th2_delta
+	th1_total_steps = round( abs(end_th1-start_th1) / th1_inc )
+	th2_total_steps = round( abs(end_th2-start_th2) / th2_inc )
+	total_steps = th1_total_steps+th2_total_steps
 	print(":: Steps")
-	print("   Th1:",th1_delta,"Th2:",th2_delta,"Total:",total_steps)
+	print("   Th1:",th1_total_steps,"Th2:",th2_total_steps,"Total:",total_steps)
 
 	# Determine time of move
-	# Distance in radians, which makes no sense at all
-	distance = math.sqrt( (end_th1-start_th1)**2 + (end_th2-start_th2)**2 )
+	# Linear cartesian movement
+	distance = math.sqrt( (end_x-start_x)**2 + (end_y-start_y)**2 )
 	move_time = distance/speed
 	print(":: Distance:",distance,"Time:",move_time)
 
-	# Calculate interval between steps for each axis
-	# Its possible that a move will only be along one axis (or none at all)
-	# If this is the case, the delta will be zero.
-	if th1_delta > 0:
-		th1_dt = move_time/th1_delta
+	# Determine cartesian velocity components
+	Vx = (end_x-start_x)/move_time
+	Vy = (end_y-start_y)/move_time
+
+	# Determine which axes will move (both, one, or none)
+	if end_th1 != start_th1:
+		th1_enable = True
 	else:
-		# Set the stepping interval greater than the move time
-		# so that axis will never be stepped
-		th1_dt = move_time+1
-	if th2_delta > 0:
-		th2_dt = move_time/th2_delta
+		th1_enable = False
+	if end_th2 != start_th2:
+		th2_enable = True
 	else:
-		th2_dt = move_time+1
+		th2_enable = False
+
+	# Set up timing
+	start_time = time.time()
+	t = 0
+	# Calculate interval for first step for each axis
+	deltat_th1 = th1_inc/dth1_dt()
+	deltat_th2 = th2_inc/dth2_dt()
+	next_th1 = t + abs(deltat_th1)
+	next_th2 = t + abs(deltat_th2)
 
 	# Determine direction to move on each axis
-	if end_th1 >= start_th1:
+	# based on sign of derivatives
+	if deltat_th1 > 0:
 		th1_dir = True
 	else:
 		th1_dir = False
-	if end_th2 >= start_th2:
+	if deltat_th2 > 0:
 		th2_dir = True
 	else:
 		th2_dir = False
 
-	# Determine times of initial steps
-	next_th1 = time.time() + th1_dt
-	next_th2 = time.time() + th2_dt
-
-	# Reset step counters
-	curr_steps = th1_steps,th2_steps = 0,0
-
 	# GO!
+	#while t < move_time:
 	while sum(curr_steps) < total_steps:
-		if time.time() >= next_th1:
+		if th1_enable and t >= next_th1:
 			th1_step()
-			next_th1 = time.time() + th1_dt
-		if time.time() >= next_th2:
+			# The rest of this could probably be put inside th1_step()
+			deltat_th1 = th1_inc/dth1_dt()
+			next_th1 = t + abs(deltat_th1)
+			if deltat_th1 > 0:
+				th1_dir = True
+			else:
+				th1_dir = False
+		if th2_enable and t >= next_th2:
 			th2_step()
-			next_th2 = time.time() + th2_dt
+			deltat_th2 = th2_inc/dth2_dt()
+			next_th2 = t + abs(deltat_th2)
+			if deltat_th2 > 0:
+				th2_dir = True
+			else:
+				th2_dir = False
 		# Check for signal to quit
 		for event in window.events:
 			if type(event) is sf.CloseEvent:
 				window.close()
 				exit()
-	#while sum(curr_steps) < total_steps:
-	#	th1_step()
-	#	th2_step()
-	#	print(":: Steps:",curr_steps,"Position:",curr_bipol)
-	#	time.sleep(0.01)
-	
+		t = time.time() - start_time
+
 	# Set new starting point in preperation for next move
 	start_bipol = start_th1,start_th2 = curr_bipol
 
