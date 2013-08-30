@@ -1,6 +1,11 @@
 # Simulates the movement of a polar coordinate based 3D Printer
+#
+# Requirements:
+# python-sfml
+# gnuplot-py from https://github.com/yuyichao/gnuplot-py
 
-import sfml as sf	# Graphics library
+import sfml as sf			# Graphics library
+import Gnuplot, Gnuplot.funcutils	# Graphing library
 import math
 import fractions
 import time
@@ -11,15 +16,14 @@ speed = 10	# Speed in mm/s
 th1_inc = 0.01	# Platter step increment in radians
 th2_inc = 0.01	# Arm step increment in radians
 
-start_cart = start_x,start_y = 0,0	# Starting coordinates (cartesian)
-end_cart = end_x,end_y = 0,0		# Ending coordinates
-
 # Graphics settings
 window_scale = 2
 window_width = 2*radius*window_scale
 window_height = 2*radius*window_scale
 
 # Initialize variables
+start_cart = start_x,start_y = 0,0	# Starting coordinates (cartesian)
+end_cart = end_x,end_y = 0,0		# Ending coordinates
 start_bipol = start_th1,start_th2 = 0,0
 end_bipol = end_th1,end_th2, = 0,0
 curr_bipol = curr_th1,curr_th2 = start_bipol
@@ -29,11 +33,14 @@ th2_dir = True				# True = positive, False = negative
 th1_total_steps = 0				# Number of steps on axis
 th2_total_steps = 0
 total_steps = 0				# Total number of steps to make
+x_list = []			# List of all t,x points for graphing
+y_list = []
+th1_list = []
+th2_list = []
 
 # Initialize Graphics
 window = sf.RenderWindow( sf.VideoMode(window_width,window_height), "SpinSim" )
-# Window doesn't draw right without a short delay
-time.sleep(0.1)
+time.sleep(0.1)		# Window doesn't draw right without a short delay
 # Set background
 window.clear(sf.Color.BLACK)
 window.display()
@@ -46,6 +53,19 @@ circle.position = (0,0)
 circle.fill_color = sf.Color.BLACK
 window.draw(circle)
 window.display()
+
+# Initialize Graphing
+cart_graph = Gnuplot.Gnuplot()
+cart_graph.title("Cartesian Coordinates")
+cart_graph.xlabel("Time (seconds)")
+cart_graph.ylabel("Position (mm)")
+cart_graph("set style data lines")	# Set graph style
+cart_graph.set_range('yrange',(-radius,radius))
+bipol_graph = Gnuplot.Gnuplot()
+bipol_graph.title("Bipolar Coordinates")
+bipol_graph.xlabel("Time (seconds)")
+bipol_graph.ylabel("Angle (Radians)")
+bipol_graph("set style data lines")	# Set graph style
 
 # Convert screen coordinates to simulated machine coordinates
 def screen2cart(screen_x,screen_y):
@@ -122,8 +142,9 @@ def draw_bipolar_point(th1,th2):
 	#print(":: Drawing bipolar point at",x,",",y)
 	draw_cartesian_point(x,y,sf.Color.BLUE)
 
+# Increment the current position as if stepping a stepper motor
 def th1_step():
-	global th1_inc, th1_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol
+	global th1_inc, th1_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol, x_listi, y_listi, th1_list	# Some of these are probable unecessary
 	th1_steps = th1_steps+1
 	if th1_dir:
 		curr_th1 = curr_th1+th1_inc
@@ -133,12 +154,18 @@ def th1_step():
 	# this should not be required in python, but it is for some reason
 	curr_steps = th1_steps,th2_steps
 	curr_bipol = curr_th1,curr_th2
-	draw_bipolar_point( *curr_bipol )
+	draw_bipolar_point( *curr_bipol )	# Optimization: use draw_cart with x,y from below
+	# Add new coordinates to history
+	t = time.time()-start_time		# Should use t from main loop
+	x,y = bipol2cart( *curr_bipol )
+	x_list.append( [t,x] )
+	y_list.append( [t,y] )
+	th1_list.append( [t,curr_th1] )
 	#print(":: Th1 Steps:",th1_steps,"Current:",curr_th1)
 	#print(curr_bipol)
 
 def th2_step():
-	global th2_inc, th2_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol
+	global th2_inc, th2_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol, x_listi, y_listi, th1_list	# Some of these are probable unecessary
 	th2_steps = th2_steps+1
 	if th2_dir:
 		curr_th2 = curr_th2+th2_inc
@@ -149,6 +176,12 @@ def th2_step():
 	curr_steps = th1_steps,th2_steps
 	curr_bipol = curr_th1,curr_th2
 	draw_bipolar_point( *curr_bipol )
+	# Add new coordinates to history
+	t = time.time()-start_time		# Should use t from main loop
+	x,y = bipol2cart( *curr_bipol )
+	x_list.append( [t,x] )
+	y_list.append( [t,y] )
+	th2_list.append( [t,curr_th2] )
 	#print(":: Th2 Steps:",th2_steps,"Current:",curr_th2)
 	#print(curr_bipol)
 
@@ -198,6 +231,12 @@ start_bipol = start_th1,start_th2 = cart2bipol( *start_cart )
 while True:
 	# Reset step counters
 	curr_steps = th1_steps,th2_steps = 0,0
+
+	# Reset history
+	x_list = []
+	y_list = []
+	th1_list = []
+	th2_list = []
 
 	# Get Target coordinates from mouse
 	# and draw it on the screen
@@ -288,6 +327,12 @@ while True:
 				window.close()
 				exit()
 		t = time.time() - start_time
+	
+	# Show Graphs
+	cart_graph.set_range('xrange',(0,time.time()-start_time))
+	cart_graph.plot(x_list,y_list)
+	bipol_graph.set_range('xrange',(0,time.time()-start_time))
+	bipol_graph.plot(th1_list,th2_list)
 
 	# Set new starting point in preperation for next move
 	start_bipol = start_th1,start_th2 = curr_bipol
