@@ -203,19 +203,19 @@ def get_click():
 				exit()
 
 # MATH:
-def x():
+def x(t):
 	return Vx*t+start_x
 
-def y():
+def y(t):
 	return Vy*t+start_y
 
-def th1():
+def th1(t):
 	r = radius
 	x0 = start_x
 	y0 = start_y
 	return math.acos( math.sqrt((Vx*t+x0)**2+(Vy*t+y0)**2) / (2*r) ) - math.atan2( (Vy*t+y0), (Vx*t+x0) )
 
-def th2():
+def th2(t):
 	r = radius
 	x0 = start_x
 	y0 = start_y
@@ -223,12 +223,12 @@ def th2():
 
 
 # Calculate theoretical positions for comparison
-def update_ideal_points():
+def update_ideal_points(t):
 	global ideal_x_list, ideal_y_list, ideal_th1_list, ideal_th2_list
-	ideal_x_list.append( [t,x()] )
-	ideal_y_list.append( [t,y()] )
-	ideal_th1_list.append( [t,th1()] )
-	ideal_th2_list.append( [t,th2()] )
+	ideal_x_list.append( [t,x(t)] )
+	ideal_y_list.append( [t,y(t)] )
+	ideal_th1_list.append( [t,th1(t)] )
+	ideal_th2_list.append( [t,th2(t)] )
 
 # Derivatives
 def dth1_dt():
@@ -247,7 +247,10 @@ def dth2_dt():
 	y0 = start_y
 	x = Vx*t+x0
 	y = Vy*t+y0
-	return 2*(1/(1-((x**2+y**2)/(4*r**2))))
+	a = 2*Vx*x+2*Vy*y
+	b = 2*r*math.sqrt(x**2+y**2)
+	c = math.sqrt(1-((x**2+y**2)/(4*r**2)))
+	return a/(b*c)
 
 # Find the next time that an axis will need to step
 def nextstep_th2():
@@ -262,10 +265,9 @@ def nextstep_th2():
 		c = x0**2 + y0**2 - 4*r**2*math.sin(th2/2)**2
 		times.append( (-b+math.sqrt(b**2-4*a*c)) / (2*a) )
 		times.append( (-b-math.sqrt(b**2-4*a*c)) / (2*a) )
-	#print(times)
+	print(":: Th2 Step",t,curr_th2,times)
 	# Take whichever value is soonest and in the future
-	# this also determines which direction to move
-	# that needs to be reported
+	# this can also determines which direction to move
 	future_times = []
 	for i in times:
 		if i > t:
@@ -367,15 +369,25 @@ while True:
 	else:
 		th2_enable = False
 
+	# Add initial points to histories
+	update_ideal_points(0)
+	x_list.append( [0,start_x] )
+	y_list.append( [0,start_y] )
+	th1_list.append( [0,start_th1] )
+	th2_list.append( [0,start_th2] )
+
 	# Set up timing
 	start_time = time.time()
 	t = 0
+
 	# Calculate time of the first step for each axis
 	next_time2 = nextstep_th2()
 	next_time1 = nextstep_th1()
 
 	# Determine direction to move on each axis
-	# based on sign of derivatives
+	# Currently this is done based on the sign of the derivatives.
+	# It is also possible to do it inside the nextstep functions.
+	# The other way might be faster.
 	if dth1_dt() > 0:
 		th1_dir = True
 	else:
@@ -399,7 +411,7 @@ while True:
 				th1_dir = True
 			else:
 				th1_dir = False
-			update_ideal_points()
+			update_ideal_points(t)
 		if th2_enable and t >= next_time2:
 			th2_step()
 			next_time2 = nextstep_th2()
@@ -407,7 +419,7 @@ while True:
 				th2_dir = True
 			else:
 				th2_dir = False
-			update_ideal_points()
+			update_ideal_points(t)
 		# Check for signal to quit
 		for event in window.events:
 			if type(event) is sf.CloseEvent:
