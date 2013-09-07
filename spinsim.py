@@ -271,7 +271,7 @@ def nextstep_th2():
 		except ValueError:
 			# if the square root is unreal, skip it
 			pass
-	print(":: Th2 Step",t,curr_th2,times)
+	#print(":: Th2 Step",t,curr_th2,times)
 	# Take whichever value is soonest and in the future
 	# this can also determines which direction to move
 	future_times = []
@@ -289,6 +289,7 @@ def nextstep_th2():
 		# This will cause the main timer to run out
 		# before the axis is moved again
 		return move_time+1
+		print(":: Th2: No times found")
 
 def nextstep_th1():
 	# Find possible times based on current positon +- step increment
@@ -308,10 +309,27 @@ def nextstep_th1():
 	for i in times:
 		if i >= t:
 			future_times.append(i)
-	return min(future_times)
 	# Since th1 is dependent on th2,
 	# if th2 will step before th1
 	# use the value of th2 after that step
+
+	# Ok, the correct way to do this would be to plot out the entire
+	# move beforehand, creating a que of step times and directions
+	# since Th2 is independent, we could refference future moves on
+	# that axis to get the correct value for Th2
+
+	# THIS PART IS WRONG SOMEHOW
+	# OR MAYBE NOT
+	# in any case, th2 direction reversals seem to be broken
+	# If no possible times occur in the future,
+	# then this axis does not need to move again
+	if len(future_times) > 0:
+		return min(future_times)
+	else:
+		# This will cause the main timer to run out
+		# before the axis is moved again
+		return move_time+1
+		print(":: Th1: No times found")
 
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
