@@ -22,18 +22,18 @@ window_width = 2*radius*window_scale
 window_height = 2*radius*window_scale
 
 # Initialize variables
-start_cart = start_x,start_y = 0,0	# Starting coordinates (cartesian)
-end_cart = end_x,end_y = 0,0		# Ending coordinates
+start_cart = start_x,start_y = 0,0		# Starting coordinates (cartesian)
+end_cart = end_x,end_y = 0,0			# Ending coordinates
 start_bipol = start_th1,start_th2 = 0,0
-end_bipol = end_th1,end_th2, = 0,0
+end_bipol = end_th1,end_th2, = 0,0		# May not be necessary
 curr_bipol = curr_th1,curr_th2 = start_bipol
 curr_steps = th1_steps,th2_steps = 0,0
-th1_dir = True				# Movement direction
-th2_dir = True				# True = positive, False = negative
+th1_dir = True					# Movement direction
+th2_dir = True					# True = positive, False = negative
 th1_total_steps = 0				# Number of steps on axis
 th2_total_steps = 0
-total_steps = 0				# Total number of steps to make
-x_list = []			# List of all t,x points for graphing
+total_steps = 0					# Total number of steps to make
+x_list = []					# List of all t,x points for graphing
 y_list = []
 th1_list = []
 th2_list = []
@@ -59,13 +59,13 @@ cart_graph = Gnuplot.Gnuplot()
 cart_graph.title("Cartesian Coordinates")
 cart_graph.xlabel("Time (seconds)")
 cart_graph.ylabel("Position (mm)")
-cart_graph("set style data lines")	# Set graph style
+cart_graph("set style data lines")		# Set graph style
 cart_graph.set_range('yrange',(-radius,radius))
 bipol_graph = Gnuplot.Gnuplot()
 bipol_graph.title("Bipolar Coordinates")
 bipol_graph.xlabel("Time (seconds)")
 bipol_graph.ylabel("Angle (Radians)")
-bipol_graph("set style data lines")	# Set graph style
+bipol_graph("set style data lines")		# Set graph style
 
 # Convert screen coordinates to simulated machine coordinates
 def screen2cart(screen_x,screen_y):
@@ -217,6 +217,52 @@ def dth2_dt():
 	y = Vy*t+y0
 	return 2*(1/(1-((x**2+y**2)/(4*r**2))))
 
+# Find the next time that an axis will need to step
+def nextstep_th2():
+	# Find possible times based on current position +- step increment
+	times = []
+	x0 = start_x
+	y0 = start_y
+	r = radius
+	a = Vx**2+Vy**2
+	b = 2*(Vx*x0+Vy*y0)
+	for th2 in [curr_th2+th2_inc,curr_th2-th2_inc]:
+		c = x0**2 + y0**2 - 4*r**2*math.sin(th2/2)**2
+		times.append( (-b+math.sqrt(b**2-4*a*c)) / (2*a) )
+		times.append( (-b-math.sqrt(b**2-4*a*c)) / (2*a) )
+	#print(times)
+	# Take whichever value is soonest and in the future
+	# this also determines which direction to move
+	# that needs to be reported
+	future_times = []
+	for i in times:
+		if i > t:
+			future_times.append(i)
+	return min(future_times)
+
+def nextstep_th1():
+	# Find possible times based on current positon +- step increment
+	times = []
+	x0 = start_x
+	y0 = start_y
+	r = radius
+	th2 = curr_th2
+	for th1 in [curr_th1+th1_inc,curr_th1-th1_inc]:
+		a = (math.pi-th2)/2-th1
+		num = x0*math.tan(a) - y0
+		den = Vy - Vx*math.tan(a)
+		times.append(num/den)
+	#print(times)
+	# Take whichever value is soonest and in the future
+	future_times = []
+	for i in times:
+		if i > t:
+			future_times.append(i)
+	return min(future_times)
+	# Since th1 is dependent on th2,
+	# if th2 will step before th1
+	# use the value of th2 after that step
+
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
 
@@ -255,6 +301,8 @@ while True:
 	print("   End:",end_bipol)
 
 	# Determine integer number of steps to move on each axis
+	# This is no longer accurate since we are not moving linearly in bipolar space
+	# can probably be removed
 	th1_total_steps = round( abs(end_th1-start_th1) / th1_inc )
 	th2_total_steps = round( abs(end_th2-start_th2) / th2_inc )
 	total_steps = th1_total_steps+th2_total_steps
@@ -272,6 +320,8 @@ while True:
 	Vy = (end_y-start_y)/move_time
 
 	# Determine which axes will move (both, one, or none)
+	# Wrong, since an axis can move and return to the same place.
+	# Fix this.
 	if end_th1 != start_th1:
 		th1_enable = True
 	else:
@@ -284,40 +334,37 @@ while True:
 	# Set up timing
 	start_time = time.time()
 	t = 0
-	# Calculate interval for first step for each axis
-	deltat_th1 = th1_inc/dth1_dt()
-	deltat_th2 = th2_inc/dth2_dt()
-	next_th1 = t + abs(deltat_th1)
-	next_th2 = t + abs(deltat_th2)
+	# Calculate time of the first step for each axis
+	next_time2 = nextstep_th2()
+	next_time1 = nextstep_th1()
 
 	# Determine direction to move on each axis
 	# based on sign of derivatives
-	if deltat_th1 > 0:
+	if dth1_dt() > 0:
 		th1_dir = True
 	else:
 		th1_dir = False
-	if deltat_th2 > 0:
+	if dth2_dt() > 0:
 		th2_dir = True
 	else:
 		th2_dir = False
 
 	# GO!
-	#while t < move_time:
-	while sum(curr_steps) < total_steps:
-		if th1_enable and t >= next_th1:
+	#while sum(curr_steps) < total_steps:
+	while t < move_time:
+		if th1_enable and t >= next_time1:
 			th1_step()
 			# The rest of this could probably be put inside th1_step()
-			deltat_th1 = th1_inc/dth1_dt()
-			next_th1 = t + abs(deltat_th1)
-			if deltat_th1 > 0:
+			next_time1 = nextstep_th1()
+			# Old direction determination
+			if dth1_dt() > 0:
 				th1_dir = True
 			else:
 				th1_dir = False
-		if th2_enable and t >= next_th2:
+		if th2_enable and t >= next_time2:
 			th2_step()
-			deltat_th2 = th2_inc/dth2_dt()
-			next_th2 = t + abs(deltat_th2)
-			if deltat_th2 > 0:
+			next_time2 = nextstep_th2()
+			if dth2_dt() > 0:
 				th2_dir = True
 			else:
 				th2_dir = False
