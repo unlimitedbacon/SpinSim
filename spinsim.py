@@ -483,6 +483,7 @@ while True:
 
 	# Set new starting point in preperation for next move
 	start_bipol = start_th1,start_th2 = curr_bipol
+	start_cart = start_x,start_y = bipol2cart( *start_bipol )
 
 # Done. Wait for signal to quit.
 while True:
