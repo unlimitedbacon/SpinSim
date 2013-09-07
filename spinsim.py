@@ -215,7 +215,10 @@ def dth2_dt():
 	y0 = start_y
 	x = Vx*t+x0
 	y = Vy*t+y0
-	return 2*(1/(1-((x**2+y**2)/(4*r**2))))
+	a = 2*Vx*x+2*Vy*y
+	b = 2*r*math.sqrt(x**2+y**2)
+	c = math.sqrt(1-((x**2+y**2)/(4*r**2)))
+	return a/(b*c)
 
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
