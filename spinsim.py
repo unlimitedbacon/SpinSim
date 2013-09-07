@@ -261,10 +261,16 @@ def nextstep_th2():
 	r = radius
 	a = Vx**2+Vy**2
 	b = 2*(Vx*x0+Vy*y0)
+	# Try moving up and down
 	for th2 in [curr_th2+th2_inc,curr_th2-th2_inc]:
 		c = x0**2 + y0**2 - 4*r**2*math.sin(th2/2)**2
-		times.append( (-b+math.sqrt(b**2-4*a*c)) / (2*a) )
-		times.append( (-b-math.sqrt(b**2-4*a*c)) / (2*a) )
+		try:
+			# create a list of possible times
+			times.append( (-b+math.sqrt(b**2-4*a*c)) / (2*a) )
+			times.append( (-b-math.sqrt(b**2-4*a*c)) / (2*a) )
+		except ValueError:
+			# if the square root is unreal, skip it
+			pass
 	print(":: Th2 Step",t,curr_th2,times)
 	# Take whichever value is soonest and in the future
 	# this can also determines which direction to move
