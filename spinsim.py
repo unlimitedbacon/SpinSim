@@ -231,7 +231,7 @@ def update_ideal_points(t):
 	ideal_th2_list.append( [t,th2(t)] )
 
 # Derivatives
-def dth1_dt():
+def dth1_dt(t):
 	# Oh God. I hope this math is right.
 	r = radius
 	x0 = start_x
@@ -241,7 +241,7 @@ def dth1_dt():
 	# dth2_dt() could be used at the beginning here
 	return -(1/(1-((x**2+y**2)/(4*r**2)))) * (((Vx**2+Vy**2)*t+Vx*x0+Vy*y0)/(2*r*math.sqrt(x**2+y**2))) - (1/(1+(y/x)**2)) * ((Vy*x0-Vx*y0)/x**2)
 
-def dth2_dt():
+def dth2_dt(t):
 	r = radius
 	x0 = start_x
 	y0 = start_y
@@ -276,9 +276,19 @@ def nextstep_th2():
 	# this can also determines which direction to move
 	future_times = []
 	for i in times:
-		if i > t:
+		if i >= t:
 			future_times.append(i)
-	return min(future_times)
+	# THIS PART IS WRONG SOMEHOW
+	# OR MAYBE NOT
+	# in any case, th2 direction reversals seem to be broken
+	# If no possible times occur in the future,
+	# then this axis does not need to move again
+	if len(future_times) > 0:
+		return min(future_times)
+	else:
+		# This will cause the main timer to run out
+		# before the axis is moved again
+		return move_time+1
 
 def nextstep_th1():
 	# Find possible times based on current positon +- step increment
@@ -296,7 +306,7 @@ def nextstep_th1():
 	# Take whichever value is soonest and in the future
 	future_times = []
 	for i in times:
-		if i > t:
+		if i >= t:
 			future_times.append(i)
 	return min(future_times)
 	# Since th1 is dependent on th2,
@@ -394,11 +404,11 @@ while True:
 	# Currently this is done based on the sign of the derivatives.
 	# It is also possible to do it inside the nextstep functions.
 	# The other way might be faster.
-	if dth1_dt() > 0:
+	if dth1_dt(t) > 0:
 		th1_dir = True
 	else:
 		th1_dir = False
-	if dth2_dt() > 0:
+	if dth2_dt(t) > 0:
 		th2_dir = True
 	else:
 		th2_dir = False
@@ -407,24 +417,32 @@ while True:
 	#while sum(curr_steps) < total_steps:
 	while t < move_time:
 		if th1_enable and t >= next_time1:
+			# Direction determination based on derivative
+			# Problem: direction reversal can happen after this step but before the next one
+			# causing the train to derail
+			if dth1_dt(t) > 0:
+				th1_dir = True
+			elif dth1_dt(t) < 0:
+				th1_dir = False
+			else:
+				# A zero derivative means a direction reversal
+				th1_dir = not th1_dir
 			th1_step()
 			# The rest of this could probably be put inside th1_step()
 			# It would probably be better to create a list of step times beforehand
 			# than to calculate the next one after each step.
 			next_time1 = nextstep_th1()
-			# Old direction determination
-			if dth1_dt() > 0:
-				th1_dir = True
-			else:
-				th1_dir = False
 			update_ideal_points(t)
 		if th2_enable and t >= next_time2:
+			if dth2_dt(t) > 0:
+				th2_dir = True
+			elif dth2_dt(t) < 0:
+				th2_dir = False
+			else:
+				# A zero derivative means a direction reversal
+				th2_dir = not th1_dir
 			th2_step()
 			next_time2 = nextstep_th2()
-			if dth2_dt() > 0:
-				th2_dir = True
-			else:
-				th2_dir = False
 			update_ideal_points(t)
 		# Check for signal to quit
 		for event in window.events:
