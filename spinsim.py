@@ -33,10 +33,14 @@ th2_dir = True					# True = positive, False = negative
 th1_total_steps = 0				# Number of steps on axis
 th2_total_steps = 0
 total_steps = 0					# Total number of steps to make
-x_list = []					# List of all t,x points for graphing
+x_list = []					# History of all t,x points for graphing
 y_list = []
 th1_list = []
 th2_list = []
+ideal_x_list = []				# Ideal curves, for comparison with actual path
+ideal_y_list = []
+ideal_th1_list = []
+ideal_th2_list = []
 
 # Initialize Graphics
 window = sf.RenderWindow( sf.VideoMode(window_width,window_height), "SpinSim" )
@@ -60,7 +64,7 @@ cart_graph.title("Cartesian Coordinates")
 cart_graph.xlabel("Time (seconds)")
 cart_graph.ylabel("Position (mm)")
 cart_graph("set style data lines")		# Set graph style
-cart_graph.set_range('yrange',(-radius,radius))
+#cart_graph.set_range('yrange',(-radius,radius))
 bipol_graph = Gnuplot.Gnuplot()
 bipol_graph.title("Bipolar Coordinates")
 bipol_graph.xlabel("Time (seconds)")
@@ -198,7 +202,35 @@ def get_click():
 				window.close()
 				exit()
 
-# MAGIC:
+# MATH:
+def x():
+	return Vx*t+start_x
+
+def y():
+	return Vy*t+start_y
+
+def th1():
+	r = radius
+	x0 = start_x
+	y0 = start_y
+	return math.acos( math.sqrt((Vx*t+x0)**2+(Vy*t+y0)**2) / (2*r) ) - math.atan2( (Vy*t+y0), (Vx*t+x0) )
+
+def th2():
+	r = radius
+	x0 = start_x
+	y0 = start_y
+	return 2*math.asin( math.sqrt((Vx*t+x0)**2+(Vy*t+y0)**2) / (2*r) )
+
+
+# Calculate theoretical positions for comparison
+def update_ideal_points():
+	global ideal_x_list, ideal_y_list, ideal_th1_list, ideal_th2_list
+	ideal_x_list.append( [t,x()] )
+	ideal_y_list.append( [t,y()] )
+	ideal_th1_list.append( [t,th1()] )
+	ideal_th2_list.append( [t,th2()] )
+
+# Derivatives
 def dth1_dt():
 	# Oh God. I hope this math is right.
 	r = radius
@@ -283,6 +315,10 @@ while True:
 	y_list = []
 	th1_list = []
 	th2_list = []
+	ideal_x_list = []				# Ideal curves, for comparison with actual path
+	ideal_y_list = []
+	ideal_th1_list = []
+	ideal_th2_list = []
 
 	# Get Target coordinates from mouse
 	# and draw it on the screen
@@ -355,12 +391,15 @@ while True:
 		if th1_enable and t >= next_time1:
 			th1_step()
 			# The rest of this could probably be put inside th1_step()
+			# It would probably be better to create a list of step times beforehand
+			# than to calculate the next one after each step.
 			next_time1 = nextstep_th1()
 			# Old direction determination
 			if dth1_dt() > 0:
 				th1_dir = True
 			else:
 				th1_dir = False
+			update_ideal_points()
 		if th2_enable and t >= next_time2:
 			th2_step()
 			next_time2 = nextstep_th2()
@@ -368,6 +407,7 @@ while True:
 				th2_dir = True
 			else:
 				th2_dir = False
+			update_ideal_points()
 		# Check for signal to quit
 		for event in window.events:
 			if type(event) is sf.CloseEvent:
@@ -375,11 +415,17 @@ while True:
 				exit()
 		t = time.time() - start_time
 	
+	# Print results of move
+	print(":: Results")
+	print("   Final Cartesian: ", bipol2cart( *curr_bipol ) )
+	print("   Final Bipolar: ", curr_bipol )
+	print("   Elapsed time: ", t )
+
 	# Show Graphs
 	cart_graph.set_range('xrange',(0,time.time()-start_time))
-	cart_graph.plot(x_list,y_list)
+	cart_graph.plot( x_list, y_list, ideal_x_list, ideal_y_list )
 	bipol_graph.set_range('xrange',(0,time.time()-start_time))
-	bipol_graph.plot(th1_list,th2_list)
+	bipol_graph.plot( th1_list, th2_list, ideal_th1_list, ideal_th2_list )
 
 	# Set new starting point in preperation for next move
 	start_bipol = start_th1,start_th2 = curr_bipol
