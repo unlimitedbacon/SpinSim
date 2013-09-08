@@ -22,17 +22,23 @@ window_width = 2*radius*window_scale
 window_height = 2*radius*window_scale
 
 # Initialize variables
+# These are all reset in the main loop.
+# Mostly they're just here for refference.
 start_cart = start_x,start_y = 0,0		# Starting coordinates (cartesian)
 end_cart = end_x,end_y = 0,0			# Ending coordinates
 start_bipol = start_th1,start_th2 = 0,0
-end_bipol = end_th1,end_th2, = 0,0		# May not be necessary
+end_bipol = end_th1,end_th2, = 0,0		# Not really necessary
 curr_bipol = curr_th1,curr_th2 = start_bipol
-curr_steps = th1_steps,th2_steps = 0,0
 th1_dir = True					# Movement direction
 th2_dir = True					# True = positive, False = negative
-th1_total_steps = 0				# Number of steps on axis
-th2_total_steps = 0
-total_steps = 0					# Total number of steps to make
+distance = 0					# Distance to move
+move_time = 0					# Duration of move
+Vx = 0						# Velocity component on X axis
+Vy = 0						# Velocity component on Y axis
+start_time = 0					# Starting global time
+t = 0						# Time since start_time
+next_time1 = 0					# Time of next Th1 step
+next_time2 = 0					# Time of next Th2 step
 x_list = []					# History of all t,x points for graphing
 y_list = []
 th1_list = []
@@ -75,7 +81,6 @@ bipol_graph("set style data lines")		# Set graph style
 def screen2cart(screen_x,screen_y):
 	x = screen_x/window_scale - radius
 	y = radius - screen_y/window_scale 
-	#print(screen_x,screen_y,x,y)
 	return x,y
 
 # Convert polar coordinates
@@ -84,7 +89,6 @@ def screen2cart(screen_x,screen_y):
 def pol2cart(theta,r):
 	x = r * math.cos(theta)
 	y = r * math.sin(theta)
-	#print("   X , Y =",x,",",y)
 	return x,y
 
 # Convert a set of bipolar coordinates
@@ -94,9 +98,6 @@ def pol2cart(theta,r):
 def bipol2cart(th1,th2):
 	theta = ((math.pi-th2)/2) - th1
 	r = 2 * radius * math.sin(th2/2)
-	#print(":: Conversion")
-	#print("   Th1 , Th2 =",th1,",",th2)
-	#print("   Th , R =",theta,",",r)
 	x,y = pol2cart(theta,r)
 	return x,y
 
@@ -105,9 +106,6 @@ def bipol2cart(th1,th2):
 def cart2pol(x,y):
 	r = math.sqrt(x**2+y**2)
 	theta = math.atan2(y,x)
-	#print(":: Conversion")
-	#print("   X , Y =",x,",",y)
-	#print("   Th , R =",theta,",",r)
 	return theta,r
 	
 # Convert a set of cartesian coordinates (X,Y)
@@ -117,7 +115,6 @@ def cart2bipol(x,y):
 	theta,r = cart2pol(x,y)
 	th1 = math.acos( r / (2*radius) ) - theta
 	th2 = 2 * math.asin( r / (2*radius) )
-	#print("   Th1 , Th2 =",th1,",",th2)
 	return th1,th2
 
 # Draw a point given cartesian machine coordinates
@@ -134,60 +131,50 @@ def draw_cartesian_point(x,y, color=sf.Color.BLUE ):
 	# Then the vertex array is drawn to the screen
 	window.draw(point)
 	window.display()
-	#print(":: Drawing cartesian point at",x,",",y)
 
+# Draw a point given polar coordinates
+# This is not used
 def draw_polar_point(theta,r):
 	x,y = pol2cart(theta,r)
-	#print(":: Drawing polar point at",x,",",y)
 	draw_cartesian_point(x,y,sf.Color.GREEN)
 
+# Draw a point given bipolar coordinates
 def draw_bipolar_point(th1,th2):
 	x,y = bipol2cart(th1,th2)
-	#print(":: Drawing bipolar point at",x,",",y)
 	draw_cartesian_point(x,y,sf.Color.BLUE)
 
 # Increment the current position as if stepping a stepper motor
 def th1_step():
-	global th1_inc, th1_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol, x_listi, y_listi, th1_list	# Some of these are probable unecessary
-	th1_steps = th1_steps+1
+	global curr_th1, curr_th2, curr_bipol, x_list, y_list, th1_list	# Some of these are probable unecessary
 	if th1_dir:
 		curr_th1 = curr_th1+th1_inc
 	else:
 		curr_th1 = curr_th1-th1_inc
-	# Update current steps and coordinate tuples
+	# Update coordinate tuples
 	# this should not be required in python, but it is for some reason
-	curr_steps = th1_steps,th2_steps
 	curr_bipol = curr_th1,curr_th2
 	draw_bipolar_point( *curr_bipol )	# Optimization: use draw_cart with x,y from below
 	# Add new coordinates to history
-	t = time.time()-start_time		# Should use t from main loop
 	x,y = bipol2cart( *curr_bipol )
 	x_list.append( [t,x] )
 	y_list.append( [t,y] )
 	th1_list.append( [t,curr_th1] )
-	#print(":: Th1 Steps:",th1_steps,"Current:",curr_th1)
-	#print(curr_bipol)
 
 def th2_step():
-	global th2_inc, th2_dir, th1_steps, th2_steps, curr_steps, curr_th1, curr_th2, curr_bipol, x_listi, y_listi, th1_list	# Some of these are probable unecessary
-	th2_steps = th2_steps+1
+	global curr_th1, curr_th2, curr_bipol, x_list, y_list, th2_list	# Some of these are probable unecessary
 	if th2_dir:
 		curr_th2 = curr_th2+th2_inc
 	else:
 		curr_th2 = curr_th2-th2_inc
-	# Update current steps and coordinate tuples
+	# Update coordinate tuples
 	# this should not be required in python, but it is for some reason
-	curr_steps = th1_steps,th2_steps
 	curr_bipol = curr_th1,curr_th2
 	draw_bipolar_point( *curr_bipol )
 	# Add new coordinates to history
-	t = time.time()-start_time		# Should use t from main loop
 	x,y = bipol2cart( *curr_bipol )
 	x_list.append( [t,x] )
 	y_list.append( [t,y] )
 	th2_list.append( [t,curr_th2] )
-	#print(":: Th2 Steps:",th2_steps,"Current:",curr_th2)
-	#print(curr_bipol)
 
 # Wait for mouse click somewhere in the window
 # and return screen coordinates
@@ -203,6 +190,7 @@ def get_click():
 				exit()
 
 # MATH:
+# Parametric equations for positions on each axis
 def x(t):
 	return Vx*t+start_x
 
@@ -211,14 +199,12 @@ def y(t):
 
 def th1(t):
 	r = radius
-	x0 = start_x
-	y0 = start_y
+	x0,y0 = start_cart
 	return math.acos( math.sqrt((Vx*t+x0)**2+(Vy*t+y0)**2) / (2*r) ) - math.atan2( (Vy*t+y0), (Vx*t+x0) )
 
 def th2(t):
 	r = radius
-	x0 = start_x
-	y0 = start_y
+	x0,y0 = start_cart
 	return 2*math.asin( math.sqrt((Vx*t+x0)**2+(Vy*t+y0)**2) / (2*r) )
 
 
@@ -234,30 +220,51 @@ def update_ideal_points(t):
 def dth1_dt(t):
 	# Oh God. I hope this math is right.
 	r = radius
-	x0 = start_x
-	y0 = start_y
-	x = Vx*t+x0
-	y = Vy*t+y0
+	x0,y0 = start_cart
+	X = x(t)
+	Y = y(t)
 	# dth2_dt() could be used at the beginning here
-	return -(1/(1-((x**2+y**2)/(4*r**2)))) * (((Vx**2+Vy**2)*t+Vx*x0+Vy*y0)/(2*r*math.sqrt(x**2+y**2))) - (1/(1+(y/x)**2)) * ((Vy*x0-Vx*y0)/x**2)
+	return -(1/(1-((X**2+Y**2)/(4*r**2)))) * (((Vx**2+Vy**2)*t+Vx*x0+Vy*y0)/(2*r*math.sqrt(X**2+Y**2))) - (1/(1+(Y/X)**2)) * ((Vy*x0-Vx*y0)/X**2)
 
 def dth2_dt(t):
 	r = radius
-	x0 = start_x
-	y0 = start_y
-	x = Vx*t+x0
-	y = Vy*t+y0
-	a = 2*Vx*x+2*Vy*y
-	b = 2*r*math.sqrt(x**2+y**2)
-	c = math.sqrt(1-((x**2+y**2)/(4*r**2)))
+	x0,y0 = start_cart
+	X = x(t)
+	Y = y(t)
+	a = 2*Vx*X+2*Vy*Y
+	b = 2*r*math.sqrt(X**2+Y**2)
+	c = math.sqrt(1-((X**2+Y**2)/(4*r**2)))
 	return a/(b*c)
+
+# Direction determination based on derivative
+# Maybe this should return a value instead of setting it directly
+def set_th1_dir():
+	global th1_dir
+	deriv = dth1_dt(t)
+	if deriv > 0:
+		th1_dir = True
+	elif deriv < 0:
+		th1_dir = False
+	else:
+		# A zero derivative means a direction reversal
+		th1_dir = not th1_dir
+
+def set_th2_dir():
+	global th2_dir
+	deriv = dth2_dt(t)
+	if deriv > 0:
+		th2_dir = True
+	elif deriv < 0:
+		th2_dir = False
+	else:
+		# A zero derivative means a direction reversal
+		th2_dir = not th1_dir
 
 # Find the next time that an axis will need to step
 def nextstep_th2():
 	# Find possible times based on current position +- step increment
 	times = []
-	x0 = start_x
-	y0 = start_y
+	x0,y0 = start_cart
 	r = radius
 	a = Vx**2+Vy**2
 	b = 2*(Vx*x0+Vy*y0)
@@ -294,8 +301,7 @@ def nextstep_th2():
 def nextstep_th1():
 	# Find possible times based on current positon +- step increment
 	times = []
-	x0 = start_x
-	y0 = start_y
+	x0,y0 = start_cart
 	r = radius
 	th2 = curr_th2
 	for th1 in [curr_th1+th1_inc,curr_th1-th1_inc]:
@@ -343,9 +349,6 @@ start_bipol = start_th1,start_th2 = cart2bipol( *start_cart )
 
 # MAIN LOOP
 while True:
-	# Reset step counters
-	curr_steps = th1_steps,th2_steps = 0,0
-
 	# Reset history
 	x_list = []
 	y_list = []
@@ -372,16 +375,7 @@ while True:
 	print("   Start:",start_bipol)
 	print("   End:",end_bipol)
 
-	# Determine integer number of steps to move on each axis
-	# This is no longer accurate since we are not moving linearly in bipolar space
-	# can probably be removed
-	th1_total_steps = round( abs(end_th1-start_th1) / th1_inc )
-	th2_total_steps = round( abs(end_th2-start_th2) / th2_inc )
-	total_steps = th1_total_steps+th2_total_steps
-	print(":: Steps")
-	print("   Th1:",th1_total_steps,"Th2:",th2_total_steps,"Total:",total_steps)
-
-	# Determine time of move
+	# Determine duration of move
 	# Linear cartesian movement
 	distance = math.sqrt( (end_x-start_x)**2 + (end_y-start_y)**2 )
 	move_time = distance/speed
@@ -390,18 +384,6 @@ while True:
 	# Determine cartesian velocity components
 	Vx = (end_x-start_x)/move_time
 	Vy = (end_y-start_y)/move_time
-
-	# Determine which axes will move (both, one, or none)
-	# Wrong, since an axis can move and return to the same place.
-	# Fix this.
-	if end_th1 != start_th1:
-		th1_enable = True
-	else:
-		th1_enable = False
-	if end_th2 != start_th2:
-		th2_enable = True
-	else:
-		th2_enable = False
 
 	# Add initial points to histories
 	update_ideal_points(0)
@@ -422,43 +404,21 @@ while True:
 	# Currently this is done based on the sign of the derivatives.
 	# It is also possible to do it inside the nextstep functions.
 	# The other way might be faster.
-	if dth1_dt(t) > 0:
-		th1_dir = True
-	else:
-		th1_dir = False
-	if dth2_dt(t) > 0:
-		th2_dir = True
-	else:
-		th2_dir = False
+	set_th1_dir()
+	set_th2_dir()
 
 	# GO!
-	#while sum(curr_steps) < total_steps:
 	while t < move_time:
-		if th1_enable and t >= next_time1:
-			# Direction determination based on derivative
-			# Problem: direction reversal can happen after this step but before the next one
-			# causing the train to derail
-			if dth1_dt(t) > 0:
-				th1_dir = True
-			elif dth1_dt(t) < 0:
-				th1_dir = False
-			else:
-				# A zero derivative means a direction reversal
-				th1_dir = not th1_dir
+		if t >= next_time1:
+			set_th1_dir()
 			th1_step()
 			# The rest of this could probably be put inside th1_step()
 			# It would probably be better to create a list of step times beforehand
 			# than to calculate the next one after each step.
 			next_time1 = nextstep_th1()
 			update_ideal_points(t)
-		if th2_enable and t >= next_time2:
-			if dth2_dt(t) > 0:
-				th2_dir = True
-			elif dth2_dt(t) < 0:
-				th2_dir = False
-			else:
-				# A zero derivative means a direction reversal
-				th2_dir = not th1_dir
+		if t >= next_time2:
+			set_th2_dir()
 			th2_step()
 			next_time2 = nextstep_th2()
 			update_ideal_points(t)
