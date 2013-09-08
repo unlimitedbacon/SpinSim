@@ -39,6 +39,8 @@ start_time = 0					# Starting global time
 t = 0						# Time since start_time
 next_time1 = 0					# Time of next Th1 step
 next_time2 = 0					# Time of next Th2 step
+th1_queue = []					# Queue of steps to make on the Th1 axis [time,direction]
+th2_queue = []					# Queue of steps to make on the Th2 axis [time,direction]
 x_list = []					# History of all t,x points for graphing
 y_list = []
 th1_list = []
@@ -237,31 +239,34 @@ def dth2_dt(t):
 	return a/(b*c)
 
 # Direction determination based on derivative
+	# Currently this is done based on the sign of the derivatives.
+	# It is also possible to do it inside the nextstep functions.
+	# The other way might be faster.
 # Maybe this should return a value instead of setting it directly
-def set_th1_dir():
+def get_th1_dir( t, last_dir ):
 	global th1_dir
 	deriv = dth1_dt(t)
 	if deriv > 0:
-		th1_dir = True
+		return True
 	elif deriv < 0:
-		th1_dir = False
+		return False
 	else:
 		# A zero derivative means a direction reversal
-		th1_dir = not th1_dir
+		return not last_dir
 
-def set_th2_dir():
+def get_th2_dir( t, last_dir ):
 	global th2_dir
 	deriv = dth2_dt(t)
 	if deriv > 0:
-		th2_dir = True
+		return True
 	elif deriv < 0:
-		th2_dir = False
+		return False
 	else:
 		# A zero derivative means a direction reversal
-		th2_dir = not th1_dir
+		return not last_dir
 
 # Find the next time that an axis will need to step
-def nextstep_th2():
+def nextstep_th2(curr_th2):
 	# Find possible times based on current position +- step increment
 	times = []
 	x0,y0 = start_cart
@@ -298,14 +303,13 @@ def nextstep_th2():
 		return move_time+1
 		print(":: Th2: No times found")
 
-def nextstep_th1():
+def nextstep_th1(curr_th1):
 	# Find possible times based on current positon +- step increment
 	times = []
 	x0,y0 = start_cart
 	r = radius
-	th2 = curr_th2
 	for th1 in [curr_th1+th1_inc,curr_th1-th1_inc]:
-		a = (math.pi-th2)/2-th1
+		a = (math.pi-th2(t))/2-th1
 		num = x0*math.tan(a) - y0
 		den = Vy - Vx*math.tan(a)
 		times.append(num/den)
@@ -385,6 +389,24 @@ while True:
 	Vx = (end_x-start_x)/move_time
 	Vy = (end_y-start_y)/move_time
 
+	# Generate queues
+	# Since Th1 is dependent on Th2, we do Th2 first
+	t = 0		# Here t is the time currently being analyzed
+	direction = True
+	while t < move_time:
+		t = nextstep_th2( th2(t) )		# Find the next step time based on current position
+		direction = get_th2_dir( t, direction )	# Determine the direction of movement
+		th2_queue.append( (t,direction) )
+		print(t,direction)
+	# Th1:
+	t = 0		# Here t is the time currently being analyzed
+	direction = True
+	while t < move_time:
+		t = nextstep_th1( th1(t) )		# Find the next step time based on current position
+		direction = get_th1_dir( t, direction )	# Determine the direction of movement
+		th1_queue.append( (t,direction) )
+		print(t,direction)
+
 	# Add initial points to histories
 	update_ideal_points(0)
 	x_list.append( [0,start_x] )
@@ -394,33 +416,24 @@ while True:
 
 	# Set up timing
 	start_time = time.time()
-	t = 0
+	t = 0		# Real life time since start_time
 
-	# Calculate time of the first step for each axis
-	next_time2 = nextstep_th2()
-	next_time1 = nextstep_th1()
-
-	# Determine direction to move on each axis
-	# Currently this is done based on the sign of the derivatives.
-	# It is also possible to do it inside the nextstep functions.
-	# The other way might be faster.
-	set_th1_dir()
-	set_th2_dir()
+	# Retreive time and direction of the first step for each axis
+	next_time2,th2_dir = th2_queue.pop(0)
+	next_time1,th1_dir = th1_queue.pop(0)
 
 	# GO!
 	while t < move_time:
 		if t >= next_time1:
-			set_th1_dir()
 			th1_step()
 			# The rest of this could probably be put inside th1_step()
 			# It would probably be better to create a list of step times beforehand
 			# than to calculate the next one after each step.
-			next_time1 = nextstep_th1()
+			next_time1,th1_dir = th1_queue.pop(0)
 			update_ideal_points(t)
 		if t >= next_time2:
-			set_th2_dir()
 			th2_step()
-			next_time2 = nextstep_th2()
+			next_time2,th2_dir = th2_queue.pop(0)
 			update_ideal_points(t)
 		# Check for signal to quit
 		for event in window.events:
