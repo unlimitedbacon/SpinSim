@@ -9,6 +9,7 @@ import Gnuplot, Gnuplot.funcutils	# Graphing library
 import math
 import fractions
 import time
+import argparse
 
 # Simulation settings
 radius = 160	# Radius of platter
@@ -20,6 +21,13 @@ th2_inc = 0.01	# Arm step increment in radians
 window_scale = 2
 window_width = 2*radius*window_scale
 window_height = 2*radius*window_scale
+
+# Get options from command line
+cli_parser = argparse.ArgumentParser()
+cli_parser.add_argument( '-t',
+			dest='fake_time', action='store_true', default=False,
+			help='Run simulation in virtual time instead of realtime.' )
+options = cli_parser.parse_args()
 
 # Initialize variables
 # These are all reset in the main loop.
@@ -303,9 +311,9 @@ def nextstep_th1():
 	times = []
 	x0,y0 = start_cart
 	r = radius
-	th2 = curr_th2
+	#th2 = curr_th2
 	for th1 in [curr_th1+th1_inc,curr_th1-th1_inc]:
-		a = (math.pi-th2)/2-th1
+		a = (math.pi-th2(t))/2-th1
 		num = x0*math.tan(a) - y0
 		den = Vy - Vx*math.tan(a)
 		times.append(num/den)
@@ -334,8 +342,8 @@ def nextstep_th1():
 	else:
 		# This will cause the main timer to run out
 		# before the axis is moved again
-		return move_time+1
 		print(":: Th1: No times found")
+		return move_time+1
 
 # Draw Center
 draw_cartesian_point( 0,0 , color=sf.Color.WHITE )
