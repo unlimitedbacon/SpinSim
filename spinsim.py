@@ -1,3 +1,6 @@
+#!/usr/bin/python
+#
+# SpinSim
 # Simulates the movement of a polar coordinate based 3D Printer
 #
 # Requirements:
@@ -26,8 +29,16 @@ window_height = 2*radius*window_scale
 cli_parser = argparse.ArgumentParser()
 cli_parser.add_argument( '-t',
 			dest='fake_time', action='store_true', default=False,
-			help='Run simulation in virtual time instead of realtime.' )
+			help='Run simulation in virtual time instead of realtime' )
+cli_parser.add_argument('-d',
+			dest='debug', action='store_true', default=False,
+			help='Debug mode (automatically uses virtual time)' )
 options = cli_parser.parse_args()
+
+# Setup debugger
+if options.debug:
+	import pdb
+	options.fake_time = True
 
 # Initialize variables
 # These are all reset in the main loop.
@@ -45,7 +56,7 @@ Vx = 0						# Velocity component on X axis
 Vy = 0						# Velocity component on Y axis
 start_time = 0					# Starting global time
 t = 0						# Time since start_time
-dt = 0.0001					# Time increment (in seconds) when using fake_time
+dt = 0.01					# Time increment (in seconds) when using fake_time
 next_time1 = 0					# Time of next Th1 step
 next_time2 = 0					# Time of next Th2 step
 x_list = []					# History of all t,x points for graphing
@@ -198,6 +209,13 @@ def get_click():
 				window.close()
 				exit()
 
+# Draw Graphs
+def update_graphs():
+	cart_graph.set_range('xrange',(0,t+dt))
+	cart_graph.plot( x_list, y_list, ideal_x_list, ideal_y_list )
+	bipol_graph.set_range('xrange',(0,t+dt))
+	bipol_graph.plot( th1_list, th2_list, ideal_th1_list, ideal_th2_list )
+
 # MATH:
 # Parametric equations for positions on each axis
 def x(t):
@@ -309,6 +327,10 @@ def nextstep_th2():
 
 def nextstep_th1():
 	# Find possible times based on current positon +- step increment
+	# Break for debugging
+	if options.debug:
+		update_graphs()
+		pdb.set_trace()
 	times = []
 	x0,y0 = start_cart
 	r = radius
@@ -452,10 +474,7 @@ while True:
 	print("   Elapsed time: ", t )
 
 	# Show Graphs
-	cart_graph.set_range('xrange',(0,t))
-	cart_graph.plot( x_list, y_list, ideal_x_list, ideal_y_list )
-	bipol_graph.set_range('xrange',(0,t))
-	bipol_graph.plot( th1_list, th2_list, ideal_th1_list, ideal_th2_list )
+	update_graphs()
 
 	# Set new starting point in preperation for next move
 	start_bipol = start_th1,start_th2 = curr_bipol
