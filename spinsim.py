@@ -339,8 +339,10 @@ def nextstep_th1():
 	x0,y0 = start_cart
 	r = radius
 	#th2 = curr_th2
+	dth2_dth1 = dth2_dt(t)/dth1_dt(t)
 	for th1n in [curr_th1+th1_inc,curr_th1-th1_inc]:
-		a = (math.pi-th2(t))/2-th1n
+		est_th2 = th2(t) + dth2_dth1*(th1n-curr_th1)	# Estimate future value of th2 based on slope of dth2/dth1
+		a = (math.pi-est_th2)/2-th1n
 		num = x0*math.tan(a) - y0
 		den = Vy - Vx*math.tan(a)
 		times.append(num/den)
