@@ -45,6 +45,7 @@ Vx = 0						# Velocity component on X axis
 Vy = 0						# Velocity component on Y axis
 start_time = 0					# Starting global time
 t = 0						# Time since start_time
+dt = 0.0001					# Time increment (in seconds) when using fake_time
 next_time1 = 0					# Time of next Th1 step
 next_time2 = 0					# Time of next Th2 step
 x_list = []					# History of all t,x points for graphing
@@ -401,7 +402,10 @@ while True:
 	th2_list.append( [0,start_th2] )
 
 	# Set up timing
-	start_time = time.time()
+	if options.fake_time:
+		start_time = 0
+	else:
+		start_time = time.time()
 	t = 0
 
 	# Calculate time of the first step for each axis
@@ -435,7 +439,11 @@ while True:
 			if type(event) is sf.CloseEvent:
 				window.close()
 				exit()
-		t = time.time() - start_time
+		# Increment clock
+		if options.fake_time:
+			t = t + dt
+		else:
+			t = time.time() - start_time
 	
 	# Print results of move
 	print(":: Results")
@@ -444,9 +452,9 @@ while True:
 	print("   Elapsed time: ", t )
 
 	# Show Graphs
-	cart_graph.set_range('xrange',(0,time.time()-start_time))
+	cart_graph.set_range('xrange',(0,t))
 	cart_graph.plot( x_list, y_list, ideal_x_list, ideal_y_list )
-	bipol_graph.set_range('xrange',(0,time.time()-start_time))
+	bipol_graph.set_range('xrange',(0,t))
 	bipol_graph.plot( th1_list, th2_list, ideal_th1_list, ideal_th2_list )
 
 	# Set new starting point in preperation for next move
