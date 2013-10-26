@@ -296,8 +296,8 @@ def nextstep_th2():
 	a = Vx**2+Vy**2
 	b = 2*(Vx*x0+Vy*y0)
 	# Try moving up and down
-	for th2 in [curr_th2+th2_inc,curr_th2-th2_inc]:
-		c = x0**2 + y0**2 - 4*r**2*math.sin(th2/2)**2
+	for th2n in [curr_th2+th2_inc,curr_th2-th2_inc]:
+		c = x0**2 + y0**2 - 4*r**2*math.sin(th2n/2)**2
 		try:
 			# create a list of possible times
 			times.append( (-b+math.sqrt(b**2-4*a*c)) / (2*a) )
@@ -318,7 +318,11 @@ def nextstep_th2():
 	# If no possible times occur in the future,
 	# then this axis does not need to move again
 	if len(future_times) > 0:
-		return min(future_times)
+		next_time = min(future_times)
+		# Check answer
+		if (abs(th2(next_time)-curr_th2+th2_inc) > th2_inc) and (abs(th2(next_time)-curr_th2-th2_inc) > th2_inc):
+			print(":: Th2 Discrepancy:",th2(next_time),curr_th2+th2_inc,curr_th2-th2_inc)
+		return next_time
 	else:
 		# This will cause the main timer to run out
 		# before the axis is moved again
@@ -335,8 +339,8 @@ def nextstep_th1():
 	x0,y0 = start_cart
 	r = radius
 	#th2 = curr_th2
-	for th1 in [curr_th1+th1_inc,curr_th1-th1_inc]:
-		a = (math.pi-th2(t))/2-th1
+	for th1n in [curr_th1+th1_inc,curr_th1-th1_inc]:
+		a = (math.pi-th2(t))/2-th1n
 		num = x0*math.tan(a) - y0
 		den = Vy - Vx*math.tan(a)
 		times.append(num/den)
@@ -361,7 +365,11 @@ def nextstep_th1():
 	# If no possible times occur in the future,
 	# then this axis does not need to move again
 	if len(future_times) > 0:
-		return min(future_times)
+		next_time = min(future_times)
+		# Check answer
+		if (abs(th1(next_time)-curr_th1+th1_inc) > th1_inc) and (abs(th1(next_time)-curr_th1-th1_inc) > th1_inc):
+			print(":: Th1 Discrepancy:",th1(next_time),curr_th1+th1_inc,curr_th1-th1_inc)
+		return next_time
 	else:
 		# This will cause the main timer to run out
 		# before the axis is moved again
