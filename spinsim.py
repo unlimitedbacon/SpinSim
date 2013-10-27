@@ -452,20 +452,38 @@ while True:
 	set_th2_dir()
 
 	# GO!
+	# There are two methods used here to determine when an axis should be stepped
+	# For th2, we find the future time in which the step must occur and wait until then.
+	# This method simulates a timer based interrup on an AVR.
+	# Unfortunately, th1 is dependant not only on time but also on th2.
+	# This means we cannot accurately determine the time in the future when it will
+	# need to be stepped.
+	# Thus we must continuously compare the current position of th1 with the ideal position.
+	# If the difference is too great, the step is performed.
+	# This method is completely accurate, but it hogs the CPU.
+	# On the real machine you would want to free CPU time by doing the comparison less frequently.
+	# Perhaps you could tie it to a timer interrupt with a fixed interval.
 	while t < move_time:
-		if t >= next_time1:
-			set_th1_dir()
-			th1_step()
-			# The rest of this could probably be put inside th1_step()
-			# It would probably be better to create a list of step times beforehand
-			# than to calculate the next one after each step.
-			next_time1 = nextstep_th1()
-			update_ideal_points(t)
+		# Is it time to step th2?
 		if t >= next_time2:
 			set_th2_dir()
 			th2_step()
+			# The rest of this could probably be put inside th1_step()
+			# Also, it would probably be better to create a list of step times beforehand
+			# than to calculate the next one after each step.
 			next_time2 = nextstep_th2()
 			update_ideal_points(t)
+		# Is it time to step th1?
+		if abs(th1(t)-curr_th1) > th1_inc:
+			set_th1_dir()
+			th1_step()
+			update_ideal_points(t)
+		#if t >= next_time1:
+		#	set_th1_dir()
+		#	th1_step()
+		#	next_time1 = nextstep_th1()
+		#	update_ideal_points(t)
+
 		# Check for signal to quit
 		for event in window.events:
 			if type(event) is sf.CloseEvent:
