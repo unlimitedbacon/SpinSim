@@ -170,6 +170,13 @@ def th1_step():
 		curr_th1 = curr_th1+th1_inc
 	else:
 		curr_th1 = curr_th1-th1_inc
+	# Check for crossing the 180 degree barrier
+	th1_low = (math.pi-curr_th2)/2-math.pi
+	th1_high = (math.pi-curr_th2)/2+math.pi
+	if curr_th1 < th1_low:
+		curr_th1 = curr_th1+2*math.pi
+	if curr_th1 > th1_high:
+		curr_th1 = curr_th1-2*math.pi
 	# Update coordinate tuples
 	# this should not be required in python, but it is for some reason
 	curr_bipol = curr_th1,curr_th2
@@ -186,6 +193,13 @@ def th2_step():
 		curr_th2 = curr_th2+th2_inc
 	else:
 		curr_th2 = curr_th2-th2_inc
+	# Check for crossing the 180 degree barrier
+	th1_low = (math.pi-curr_th2)/2-math.pi
+	th1_high = (math.pi-curr_th2)/2+math.pi
+	if curr_th1 < th1_low:
+		curr_th1 = curr_th1+2*math.pi
+	if curr_th1 > th1_high:
+		curr_th1 = curr_th1-2*math.pi
 	# Update coordinate tuples
 	# this should not be required in python, but it is for some reason
 	curr_bipol = curr_th1,curr_th2
