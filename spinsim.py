@@ -16,9 +16,13 @@ import argparse
 
 # Simulation settings
 radius = 160	# Radius of platter
-speed = 10	# Speed in mm/s
-th1_inc = 0.01	# Platter step increment in radians
-th2_inc = 0.01	# Arm step increment in radians
+speed = 40	# Speed in mm/s
+# Stepping increment for each axis (radians/step)
+# = 2π radians / ( motor steps/revolution * gear ratio)
+# = 2π radians / ( 200 steps/rev * (385 teeth / 18 teeth))
+th1_inc = 2*math.pi / (200*(385/18))	# Platter step increment in radians
+# = 2π radians / ( 200 steps/rev * (450 teeth / 18 teeth))
+th2_inc = 2*math.pi / (200*(450/18))	# Arm step increment in radians
 
 # Graphics settings
 window_scale = 2
