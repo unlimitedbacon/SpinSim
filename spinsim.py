@@ -339,13 +339,13 @@ def nextstep_th2():
 		next_time = min(future_times)
 		# Check answer
 		if (abs(th2(next_time)-curr_th2+th2_inc) > th2_inc) and (abs(th2(next_time)-curr_th2-th2_inc) > th2_inc):
-			print(":: Th2 Discrepancy:",th2(next_time),curr_th2+th2_inc,curr_th2-th2_inc)
+			print(":: θ₂ Discrepancy:",th2(next_time),curr_th2+th2_inc,curr_th2-th2_inc)
 		return next_time
 	else:
 		# This will cause the main timer to run out
 		# before the axis is moved again
 		return move_time+1
-		print(":: Th2: No times found")
+		print(":: θ₂: No times found")
 
 def nextstep_th1():
 	# Find possible times based on current positon +- step increment
@@ -388,12 +388,12 @@ def nextstep_th1():
 		next_time = min(future_times)
 		# Check answer
 		if (abs(th1(next_time)-curr_th1+th1_inc) > th1_inc) and (abs(th1(next_time)-curr_th1-th1_inc) > th1_inc):
-			print(":: Th1 Discrepancy:",th1(next_time),curr_th1+th1_inc,curr_th1-th1_inc)
+			print(":: θ₁ Discrepancy:",th1(next_time),curr_th1+th1_inc,curr_th1-th1_inc)
 		return next_time
 	else:
 		# This will cause the main timer to run out
 		# before the axis is moved again
-		print(":: Th1: No times found")
+		print(":: θ₁ No times found")
 		return move_time+1
 
 # Draw Center
@@ -514,10 +514,16 @@ while True:
 			t = time.time() - start_time
 	
 	# Print results of move
+	final_cart = bipol2cart( *curr_bipol )
 	print(":: Results")
-	print("   Final Cartesian: ", bipol2cart( *curr_bipol ) )
-	print("   Final Bipolar: ", curr_bipol )
-	print("   Elapsed time: ", t )
+	print("   Final Cartesian:", final_cart )
+	print("   Final Bipolar:", curr_bipol )
+	print("   Elapsed time:", t )
+	print("   Error:", math.sqrt( (final_cart[0]-end_x)**2 + (final_cart[1]-end_y)**2 ) )
+	print("   Steps:")
+	print("   θ₁:", len(th1_list), "θ₂:", len(th2_list) )
+	print("   Average Frequency:")
+	print("   θ₁:", len(th1_list)/t, "Hz  θ₂:", len(th2_list)/t, "Hz" )
 
 	# Show Graphs
 	update_graphs()
