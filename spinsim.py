@@ -61,8 +61,8 @@ Vy = 0						# Velocity component on Y axis
 start_time = 0					# Starting global time
 t = 0						# Time since start_time
 dt = 0.01					# Time increment (in seconds) when using fake_time
-next_time1 = 0					# Time of next Th1 step
-next_time2 = 0					# Time of next Th2 step
+next_time1 = 0					# Time of next θ₁ step
+next_time2 = 0					# Time of next θ₂ step
 x_list = []					# History of all t,x points for graphing
 y_list = []
 th1_list = []
@@ -133,7 +133,7 @@ def cart2pol(x,y):
 	return theta,r
 	
 # Convert a set of cartesian coordinates (X,Y)
-# into bipolar coordinates (Th1,Th2) represented by two angles,
+# into bipolar coordinates (θ₁,θ₂) represented by two angles,
 # the angle of the platter and the angle of the arm.
 def cart2bipol(x,y):
 	theta,r = cart2pol(x,y)
@@ -471,18 +471,18 @@ while True:
 
 	# GO!
 	# There are two methods used here to determine when an axis should be stepped
-	# For th2, we find the future time in which the step must occur and wait until then.
+	# For θ₂, we find the future time in which the step must occur and wait until then.
 	# This method simulates a timer based interrup on an AVR.
-	# Unfortunately, th1 is dependant not only on time but also on th2.
+	# Unfortunately, θ₁ is dependant not only on time but also on θ₂.
 	# This means we cannot accurately determine the time in the future when it will
 	# need to be stepped.
-	# Thus we must continuously compare the current position of th1 with the ideal position.
+	# Thus we must continuously compare the current position of θ₁ with the ideal position.
 	# If the difference is too great, the step is performed.
 	# This method is completely accurate, but it hogs the CPU.
 	# On the real machine you would want to free CPU time by doing the comparison less frequently.
 	# Perhaps you could tie it to a timer interrupt with a fixed interval.
 	while t < move_time:
-		# Is it time to step th2?
+		# Is it time to step θ₂?
 		if t >= next_time2:
 			set_th2_dir()
 			th2_step()
@@ -491,7 +491,7 @@ while True:
 			# than to calculate the next one after each step.
 			next_time2 = nextstep_th2()
 			update_ideal_points(t)
-		# Is it time to step th1?
+		# Is it time to step θ₁?
 		if abs(th1(t)-curr_th1) > th1_inc:
 			set_th1_dir()
 			th1_step()
